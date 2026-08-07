@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WALLPAPER_DIR="$HOME/Pictures/wallpaper"
+CONFIG_FILE="$HOME/.config/illogical-impulse/config.json"
+
+mapfile -d '' -t CANDIDATES < <(
+  find "$WALLPAPER_DIR" -type f \
+    \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.avif' -o -iname '*.bmp' \) \
+    -print0 2>/dev/null
+)
+
+if [ "${#CANDIDATES[@]}" -eq 0 ]; then
+  exit 1
+fi
+
+IMG="${CANDIDATES[$((RANDOM % ${#CANDIDATES[@]}))]}"
+mkdir -p "$(dirname "$CONFIG_FILE")"
+
+if jq -e . "$CONFIG_FILE" >/dev/null 2>&1; then
+  jq --arg path "$IMG" '.background.wallpaperPath = $path' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+else
+  jq -n --arg path "$IMG" '{panelFamily: "ii", background: {wallpaperPath: $path, thumbnailPath: ""}}' > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+fi
