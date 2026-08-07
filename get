@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Online installer/updater for full-setup.
+#
+# Designed for piping to bash:
+#   bash <(curl -s https://raw.githubusercontent.com/n5za/full-setup/master/get)
+# Shebang and execute permission are not needed when piped.
+#
+# Local testing: bash get
+
+me="-->full-setup<--"
+remote_repo=n5za/full-setup
+local_path=~/.cache/full-setup
+set -e
+
+function try() { "$@" || sleep 0; }
+function x() {
+  if "$@"; then local cmdstatus=0; else local cmdstatus=1; fi
+  while [ "$cmdstatus" == 1 ]; do
+    echo -e "\e[31m$me: Command \"\e[32m$@\e[31m\" has failed."
+    echo -e "You may need to resolve the problem manually BEFORE repeating this command.\e[0m"
+    echo "  r = Repeat this command (DEFAULT)"
+    echo "  e = Exit now"
+    read -rp " [R/e]: " p
+    case $p in
+      [eE]) echo -e "\e[34mAlright, will exit.\e[0m"; break ;;
+      *) echo -e "\e[34mOK, repeating...\e[0m"
+         if "$@"; then local cmdstatus=0; else local cmdstatus=1; fi ;;
+    esac
+  done
+  case $cmdstatus in
+    0) echo -e "\e[34m$me: Command \"\e[32m$@\e[34m\" finished.\e[0m" ;;
+    1) echo -e "\e[31m$me: Command \"\e[32m$@\e[31m\" has failed. Exiting...\e[0m"; exit 1 ;;
+  esac
+}
+
+command -v git >/dev/null 2>&1 || { echo "$me: git is required but not installed. Aborting..."; exit 1; }
+
+echo "$me: path to clone: $local_path"
+mkdir -p "$local_path"
+cd "$local_path"
+if [ -z "$(ls -A)" ]; then
+  git init -b master
+  git remote add origin "https://github.com/$remote_repo"
+fi
+git remote get-url origin | grep -q "$remote_repo" || {
+  echo "Dir \"$local_path\" is not empty, nor a git repo of $remote_repo. Aborting..."
+  exit 1
+}
+x git pull origin master
+x git branch --set-upstream-to=origin/master master
+echo "$me: Downloaded."
+echo "$me: Running \"./setup.sh\"."
+x ./setup.sh

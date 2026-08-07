@@ -2,7 +2,15 @@
 
 One-shot setup for my Arch Linux system: packages, apps, theme and hypr config.
 
-## Usage
+## Install / Update (one-liner)
+
+```bash
+bash <(curl -s https://raw.githubusercontent.com/n5za/full-setup/master/get)
+```
+
+This downloads/clones the repo to `~/.cache/full-setup` (and pulls updates if it already exists), then runs `./setup.sh`.
+
+## Usage (manual)
 
 ```bash
 git clone https://github.com/n5za/full-setup.git
