@@ -6,6 +6,13 @@
 # Shebang and execute permission are not needed when piped.
 #
 # Local testing: bash get
+#
+# Flow:
+#   1. Detect distro
+#   2. Ensure git is installed
+#   3. Pull updates from origin (repo must exist at ~/.cache/full-setup)
+#   4. Ensure tools needed by setup (yay on arch)
+#   5. Run ./setup.sh
 
 me="-->full-setup<--"
 remote_repo=n5za/full-setup
@@ -33,7 +40,51 @@ function x() {
   esac
 }
 
-command -v git >/dev/null 2>&1 || { echo "$me: git is required but not installed. Aborting..."; exit 1; }
+function detect_distro_id() {
+  . /etc/os-release 2>/dev/null || { echo "$me: Cannot read /etc/os-release. Aborting..."; exit 1; }
+  OS_DISTRO_ID=$ID
+  OS_DISTRO_ID_LIKE=$ID_LIKE
+  echo "$me: OS_DISTRO_ID: $OS_DISTRO_ID"
+  echo "$me: OS_DISTRO_ID_LIKE: $OS_DISTRO_ID_LIKE"
+  case "$ID $ID_LIKE" in
+    arch*|cachyos*) OS_GROUP_ID=arch ;;
+    debian*|ubuntu*) OS_GROUP_ID=debian ;;
+    fedora*) OS_GROUP_ID=fedora ;;
+    *suse*) OS_GROUP_ID=suse ;;
+    *) OS_GROUP_ID= ;;
+  esac
+}
+
+function auto_install_git() {
+  command -v git >/dev/null 2>&1 && return
+  echo "$me: Command \"git\" not found, trying to install it..."
+  case $OS_GROUP_ID in
+    arch)   x sudo pacman -S --noconfirm git ;;
+    debian) x sudo apt update -y && x sudo apt install -y git ;;
+    fedora) x sudo dnf install -y git ;;
+    suse)   x sudo zypper -n install git ;;
+    *)      echo "$me: Unsupported distro, install git manually. Aborting..."; exit 1 ;;
+  esac
+  command -v git >/dev/null 2>&1 || { echo "$me: Failed to install git. Aborting..."; exit 1; }
+}
+
+function ensure_yay() {
+  [ "$OS_GROUP_ID" = "arch" ] || return 0
+  command -v yay >/dev/null 2>&1 && { echo "$me: yay found."; return 0; }
+  echo "$me: yay not found, building from AUR..."
+  local tmp
+  tmp="$(mktemp -d)"
+  x git clone --depth=1 https://aur.archlinux.org/yay.git "$tmp/yay"
+  cd "$tmp/yay"
+  x makepkg -si --noconfirm
+  cd "$local_path"
+  rm -rf "$tmp"
+  command -v yay >/dev/null 2>&1 || { echo "$me: Failed to install yay. Aborting..."; exit 1; }
+  echo "$me: yay installed."
+}
+
+detect_distro_id
+auto_install_git
 
 echo "$me: path to clone: $local_path"
 mkdir -p "$local_path"
@@ -48,6 +99,9 @@ git remote get-url origin | grep -q "$remote_repo" || {
 }
 x git pull origin master
 x git branch --set-upstream-to=origin/master master
-echo "$me: Downloaded."
+echo "$me: Downloaded/Updated."
+
+ensure_yay
+
 echo "$me: Running \"./setup.sh\"."
 x ./setup.sh
