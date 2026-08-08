@@ -34,3 +34,9 @@ cd full-setup
 pacman -Qqn > packages/repo.txt
 pacman -Qmq > packages/aur.txt
 ```
+
+## Support
+
+If this setup saved you time, consider a small donation:
+
+[![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://paypal.me/NasaNkza)
